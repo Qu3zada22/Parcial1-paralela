@@ -23,7 +23,5 @@ Universidad del Valle de Guatemala - Semestre II, 2026
 
 ## Problemas seleccionados
 
-_(Pendiente: completar una vez el equipo elija los 2 algoritmos a paralelizar de los 3 disponibles)_
-
 1. Histograma
 2. Matrices
