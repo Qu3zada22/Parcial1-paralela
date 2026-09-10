@@ -1,13 +1,6 @@
-CC = gcc
+CC = gcc-16
 CFLAGS = -Wall -Wextra -O3
-
-# Detectar si es macOS (clang)
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-    OPENMP = -Xclang -fopenmp
-else
-    OPENMP = -fopenmp
-endif
+OPENMP = -fopenmp
 
 # Directorios
 SEC_DIR = secuencial
