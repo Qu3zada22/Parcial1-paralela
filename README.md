@@ -1,17 +1,17 @@
 # Parcial1-paralela
 
-# Nodo Paralelo Consulting
+# Nodos Paralelos Consulting
 
 Consultoría de optimización de software especializada en High Performance Computing (HPC) con OpenMP.
 
-**Examen Parcial 1 - Computación Paralela y Distribuida (CC3069)**
-Universidad del Valle de Guatemala - Semestre II, 2026
+Computación Paralela y Distribuid
+Universidad del Valle de Guatemala
 
 ## Integrantes
 
-- Melisa Mendizabal 23778
-- Anggie Quezada 23643
-- Kevin Villagrán 23584
+- Melisa Dayana Mendizabal Meléndez 23778
+- Anggie Daniella Quezada Molina 23643
+- Kevin Josué Villagrán Mérida 23584
 
 ## Estructura del repositorio
 
@@ -25,3 +25,14 @@ Universidad del Valle de Guatemala - Semestre II, 2026
 
 1. Histograma
 2. Matrices
+
+
+## Compilación y Ejecución
+
+
+## Referencias
+
+- OpenMP Directive Syntax: https://www.openmp.org/
+- Reduction Clause: https://www.openmp.org/spec-html/5.0/openmpsu59.html
+- Atomic Directive: https://www.openmp.org/spec-html/5.0/openmpsu60.html
+

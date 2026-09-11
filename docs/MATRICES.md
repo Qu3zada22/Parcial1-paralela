@@ -1,134 +1,32 @@
 # Multiplicación de Matrices Densas - Documentación Técnica
 
-**Autor:** Kevin Villagrán  
-**Problema:** Multiplicación de Matrices Densas  
-**Lenguaje:** C  
-**Paralelización:** OpenMP  
+## Problema: Multiplicación de Matrices Densas
 
----
+## 1. Contexto y Datos
+Se tienen dos matrices cuadradas A y B, y se quiere calcular una tercera matriz C mediante C = A × B. Cada elemento C[fila][j] se obtiene multiplicando los elementos correspondientes de una fila de A y una columna de B, y sumando esos productos.
 
-## 1. Descripción del Problema
-
-### Contexto
-
-Se tienen dos matrices cuadradas, `A` y `B`, y se desea calcular una tercera
-matriz `C` mediante la operación `C = A × B`. Cada elemento `C[fila][j]` se
-obtiene multiplicando los elementos correspondientes de una fila de `A` y una
-columna de `B`, y sumando esos productos.
-
-El diagrama plantea matrices de `1M × 1M` para representar una carga masiva. En
-la implementación, el tamaño se recibe mediante `n` y su valor predeterminado
-es `1000`, lo que permite ajustar el problema a la memoria disponible.
-
-### Entrada
-
-- Dimensión `n` de las matrices; por defecto, `N_DEFAULT = 1000`
-- Número opcional de trabajadores `P`
-- Matrices `A` y `B` de tipo `double`
-- Valores pseudoaleatorios entre 0 y 9, generados con semilla `42`
-
-### Salida
-
-- Matriz resultante `C = A × B`
-- Muestra de hasta `6 × 6` elementos de `C`
-- Checksum de todos los elementos calculados
-- Tiempo de ejecución de la multiplicación
-
----
+### Datos de prueba
+- Tamaño de la muestra (n): 1000 x 1000 por defecto (N_DEFAULT = 1000), un tamaño suficiente para que el cómputo (O(n³)) sea perceptible y aproveche varios núcleos, sin agotar la memoria disponible.
+- Origen: Valores pseudoaleatorios entre 0 y 9, generados con semilla 42, simulando datos numéricos genéricos de entrada.
+- Estructura en memoria: Arreglos lineales de tipo `double` reservados con `malloc`/`calloc` (no matrices 2D fijas), accedidos como `A[fila * n + columna]`. Esto permite elegir `n` en tiempo de ejecución en vez de usar arreglos de tamaño fijo en la pila.
 
 ## 2. Solución Secuencial
 
 ### Algoritmo
-
-```text
 1. Recorrer cada fila de A
 2. Para cada fila, recorrer cada columna de B
 3. Inicializar suma = 0
 4. Recorrer k desde 0 hasta n - 1
 5. Acumular A[fila][k] × B[k][j] en suma
 6. Guardar suma en C[fila][j]
-```
 
-La operación principal se expresa con tres ciclos anidados:
+**Complejidad:** O(n³) en tiempo (tres ciclos anidados), O(n²) en espacio (las tres matrices).
 
-```c
-for (int fila = 0; fila < n; fila++) {
-    for (int j = 0; j < n; j++) {
-        double suma = 0.0;
-        for (int k = 0; k < n; k++) {
-            suma += matrizA[fila * n + k] * matrizB[k * n + j];
-        }
-        resultado[fila * n + j] = suma;
-    }
-}
-```
+## 3. Estrategia de Paralelización
 
-### Complejidad
+Para acelerar el programa, dividimos el trabajo entre varios hilos usando OpenMP con un enfoque de **paralelismo de datos por filas**: cada hilo recibe un bloque de filas de C y usa las mismas filas de A para calcularlas. La matriz B es compartida y solo se consulta (lectura).
 
-- **Tiempo:** `O(n³)`, porque se realizan tres recorridos anidados
-- **Espacio:** `O(n²)`, correspondiente a las tres matrices
-- **Operaciones aproximadas:** `2n³`, contando multiplicaciones y sumas
-
----
-
-## 3. Flujo Representado en el Diagrama
-
-El diagrama divide el proceso en dos partes: la coordinación general y el
-trabajo que realiza cada trabajador.
-
-### Coordinación general
-
-```text
-Inicio
-  ↓
-Declarar A, B y C; C comienza con valores en 0
-  ↓
-Definir el número de trabajadores P
-  ↓
-Asignar a cada trabajador un conjunto de filas
-  ↓
-Crear los P trabajadores
-  ↓
-Esperar a que todos terminen
-  ↓
-Fin
-```
-
-### Flujo de cada trabajador
-
-```text
-Inicio Trabajador
-  ↓
-Tomar una fila asignada
-  ↓
-Para cada columna j
-  ↓
-suma = 0
-  ↓
-Para cada posición k
-  ↓
-suma += A[fila][k] × B[k][j]
-  ↓
-C[fila][j] = suma
-  ↓
-Continuar con la siguiente columna y la siguiente fila asignada
-  ↓
-Fin Trabajador
-```
-
-En el código no se crean los trabajadores manualmente. OpenMP realiza esa
-tarea, distribuye las filas y espera a que todos terminen mediante la barrera
-implícita del `parallel for`.
-
----
-
-## 4. Estrategia de Paralelización
-
-### Tipo de Descomposición
-
-Se utiliza **paralelismo de datos por filas**. Cada trabajador recibe un bloque
-de filas de `C` y utiliza las mismas filas de `A` para calcularlas. La matriz
-`B` es compartida y únicamente se consulta.
+### ¿Qué directiva usamos y por qué?
 
 ```c
 #pragma omp parallel for schedule(static)
@@ -143,127 +41,56 @@ for (int fila = 0; fila < n; fila++) {
 }
 ```
 
-### Correspondencia con el diagrama
+`parallel for` reparte las filas del ciclo externo entre los hilos, y `omp_set_num_threads(P)` define cuántos trabajadores se usan. Como cada hilo escribe únicamente en las filas de `resultado` que le tocaron, no hace falta ninguna directiva adicional de sincronización para proteger la escritura.
 
-- `omp_set_num_threads(P)` define el número solicitado de trabajadores.
-- `parallel for` crea el equipo de trabajadores y paraleliza el ciclo de filas.
-- `schedule(static)` reparte las filas en bloques de tamaño similar.
-- Cada trabajador ejecuta localmente los ciclos de columnas `j` y productos `k`.
-- La barrera implícita espera a todos antes de medir el tiempo final.
+## 4. Manejo de condiciones de carrera y balance de carga
 
----
+### Condiciones de carrera
+No se necesita `atomic`, `critical` ni `reduction`. Dos hilos nunca escriben la misma fila de `resultado`, `matrizA` y `matrizB` son de solo lectura, y las variables `j`, `k` y `suma` se declaran dentro del ciclo, por lo que cada hilo tiene su propia copia privada. El checksum final se calcula después del `parallel for`, cuando la barrera implícita ya garantiza que toda la matriz está completa.
 
-## 5. Análisis de Colisiones (Race Conditions)
+### Desbalance de carga y Scheduling
+Elegimos `schedule(static)` porque todas las filas cuestan exactamente lo mismo: cada una implica n² operaciones sin importar su posición. Al no existir filas "más pesadas" que otras, repartirlas en bloques fijos desde el inicio es lo más eficiente y evita el overhead de reasignar trabajo dinámicamente.
 
-| Variable | Uso | Protección necesaria |
-|----------|-----|----------------------|
-| `matrizA` | Compartida, solo lectura | Ninguna |
-| `matrizB` | Compartida, solo lectura | Ninguna |
-| `resultado` | Compartida, escritura por filas distintas | Ninguna |
-| `fila` | Índice privado del `parallel for` | Administrada por OpenMP |
-| `j`, `k`, `suma` | Declaradas dentro de cada iteración | Privadas para cada trabajador |
+## 5. Resultados y Métricas
 
-No se necesita `atomic`, `critical` ni `reduction` durante la multiplicación.
-Dos trabajadores no escriben la misma fila de `resultado`, por lo que no existe
-una colisión entre sus asignaciones.
+### Análisis del algoritmo secuencial vs. paralelo
+El algoritmo secuencial hace O(n³) operaciones sin ninguna posibilidad de paralelismo. Al repartir las n filas del resultado entre P hilos, cada uno hace aproximadamente n²·(n/P) operaciones independientes, sin sincronización durante el cálculo. A diferencia del histograma, aquí el trabajo por hilo es mucho mayor que el overhead de crear los hilos, por lo que la paralelización sí produce una mejora real y sostenida — aunque no lineal, porque el ancho de banda de memoria y la heterogeneidad de núcleos limitan la ganancia a partir de cierto número de hilos.
 
-El checksum se calcula después del `parallel for`. Para ese momento, la barrera
-implícita garantiza que toda la matriz resultante ya fue completada.
+## 6. Pruebas de ejecución y métricas individuales
 
----
+### Pruebas de corrida
 
-## 6. Decisiones de Diseño
+- Melisa Mendizabal: METRICAS_MELISA.md
+- Kevin Villagrán: METRICAS_KEVIN.md
+- Anggie Quezada: METRICAS_ANGGIE.md
 
-### ¿Por qué paralelizar por filas?
-
-1. **Independencia:** cada fila de `C` puede calcularse sin depender de otra.
-2. **Carga uniforme:** todas las filas requieren aproximadamente el mismo trabajo.
-3. **Reparto simple:** `schedule(static)` evita el costo de reasignar trabajo.
-4. **Escrituras separadas:** cada trabajador modifica una región distinta de `C`.
-5. **Buena granularidad:** una fila contiene `n²` operaciones aproximadas.
-
-### Memoria dinámica
-
-Las matrices se almacenan como arreglos lineales reservados con `malloc` y
-`calloc`. El elemento de la fila `i` y columna `j` se accede mediante
-`i * n + j`. Esto permite elegir `n` durante la ejecución sin usar arreglos de
-tamaño fijo en la pila.
-
-### Validación mediante checksum
-
-La suma de todos los elementos de `C` permite comprobar que distintas
-configuraciones de trabajadores producen el mismo resultado. No sustituye una
-comparación elemento por elemento, pero ayuda a detectar cambios en el cálculo.
-
----
-
-## 7. Compilación y Ejecución
-
-### Compilar
-
+## 7. Compilar
 ```bash
 make all
 ```
 
 Genera:
+- bin/matrices_secuencial
+- bin/matrices_paralelo
 
-- `bin/matrices_secuencial`
-- `bin/matrices_paralelo`
-
-### Ejecutar la versión secuencial incluida
-
+### Ejecutar versión secuencial (ejemplo fijo 3x3)
 ```bash
 make run_mat_sec
 ```
 
-Esta versión usa el ejemplo fijo de `3 × 3` definido en
-`secuencial/matrices_secuencial.c`.
-
-### Ejecutar la versión paralela
-
+### Ejecutar versión paralela
 ```bash
 make run_mat_par N=1000 P=8
-```
-
-También puede ejecutarse directamente:
-
-```bash
+# o
 ./bin/matrices_paralelo 1000 8
 ```
 
-### Ejecutar la prueba de escalabilidad
-
+### Ejecutar prueba de escalabilidad
 ```bash
 make bench_mat N=1000
 ```
 
-El objetivo `bench_mat` ejecuta el programa con `1`, `2`, `4`, `8` y `16`
-trabajadores.
-
----
-
-## 8. Resultados Esperados
-
-### Validez funcional
-
-- La matriz `C` contiene el producto de `A` y `B`.
-- El resultado debe conservar el mismo checksum al cambiar `P`.
-- Con `N=1000` y semilla `42`, las mediciones registradas obtuvieron un checksum
-  de `20,224,732,496`.
-
-### Desempeño
-
-- La carga `O(n³)` ofrece suficiente trabajo para aprovechar varios núcleos.
-- El rendimiento mejora mientras existan núcleos y ancho de banda disponibles.
-- Agregar más trabajadores no garantiza una mejora indefinida.
-
-Los tiempos, el speedup y la eficiencia medidos se encuentran en
-`docs/METRICAS_KEVIN.md`.
-
----
-
-## Referencias
-
-- OpenMP: https://www.openmp.org/
-- OpenMP Worksharing-Loop Construct: https://www.openmp.org/spec-html/5.0/openmpsu41.html
-- Documentación de métricas del proyecto: `docs/METRICAS_KEVIN.md`
+### Ejecutar varias corridas por configuración (para métricas)
+```bash
+make bench_mat_reps N=1000 REPS=5
+```
