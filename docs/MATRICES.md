@@ -1,4 +1,5 @@
 # Multiplicación de Matrices Densas - Documentación Técnica
+[Enlace al repo](https://github.com/Qu3zada22/Parcial1-paralela)
 
 ## Problema: Multiplicación de Matrices Densas
 

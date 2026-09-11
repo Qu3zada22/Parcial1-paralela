@@ -1,4 +1,5 @@
 # Parcial1-paralela
+[Enlace al repositorio](https://github.com/Qu3zada22/Parcial1-paralela)
 
 # Nodos Paralelos Consulting
 
