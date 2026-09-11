@@ -85,9 +85,9 @@ $(BINS_DIR)/matrices_secuencial: $(SEC_DIR)/matrices_secuencial.c
 $(BINS_DIR)/matrices_paralelo: $(PAR_DIR)/matrices_paralelo.c
 	$(CC) $(CFLAGS) $(OPENMP) -o $@ $^
 
-# Ejecutar secuencial
+# Ejecutar secuencial con N (make run_mat_sec N=1000)
 run_mat_sec: $(BINS_DIR)/matrices_secuencial
-	./$(BINS_DIR)/matrices_secuencial
+	./$(BINS_DIR)/matrices_secuencial $(N)
 
 # Ejecutar paralelo con N y P (make run_mat_par N=1000 P=8)
 run_mat_par: $(BINS_DIR)/matrices_paralelo
@@ -114,8 +114,28 @@ bench_mat_reps: $(BINS_DIR)/matrices_paralelo
 		echo ""; \
 	done
 
+# Comparacion directa: mismo N y datos para secuencial y paralelo
+# make bench_mat_compare N=1000 P=8 REPS=5
+bench_mat_compare: $(BINS_DIR)/matrices_secuencial $(BINS_DIR)/matrices_paralelo
+	@echo "=== Matrices N=$(N): secuencial vs. paralelo P=$(P) ($(REPS) corridas) ==="
+	@echo "-- Secuencial (1 trabajador) --"
+	@for i in $$(seq 1 $(REPS)); do \
+		printf "Run %s: " $$i; \
+		./$(BINS_DIR)/matrices_secuencial $(N) | grep "Tiempo"; \
+	done
+	@echo ""
+	@echo "-- Paralelo ($(P) trabajadores) --"
+	@for i in $$(seq 1 $(REPS)); do \
+		printf "Run %s: " $$i; \
+		./$(BINS_DIR)/matrices_paralelo $(N) $(P) | grep "Tiempo"; \
+	done
+	@echo ""
+	@echo "-- Validacion de resultado --"
+	@printf "Secuencial: "; ./$(BINS_DIR)/matrices_secuencial $(N) | grep "Checksum"
+	@printf "Paralelo:   "; ./$(BINS_DIR)/matrices_paralelo $(N) $(P) | grep "Checksum"
+
 # Limpiar
 clean:
 	rm -rf $(BINS_DIR)
 
-.PHONY: all run_sec run_par bench bench_hist bench_hist_threads run_mat_sec run_mat_par bench_mat bench_mat_reps clean
+.PHONY: all run_sec run_par bench bench_hist bench_hist_threads run_mat_sec run_mat_par bench_mat bench_mat_reps bench_mat_compare clean

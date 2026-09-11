@@ -74,9 +74,11 @@ Genera:
 - bin/matrices_secuencial
 - bin/matrices_paralelo
 
-### Ejecutar versión secuencial (ejemplo fijo 3x3)
+### Ejecutar versión secuencial
 ```bash
-make run_mat_sec
+make run_mat_sec N=1000
+# o
+./bin/matrices_secuencial 1000
 ```
 
 ### Ejecutar versión paralela
@@ -95,3 +97,11 @@ make bench_mat N=1000
 ```bash
 make bench_mat_reps N=1000 REPS=5
 ```
+
+### Comparar secuencial contra paralelo
+```bash
+make bench_mat_compare N=1000 P=8 REPS=5
+```
+
+Este comando usa la misma dimensión, semilla y datos en ambas versiones, y
+muestra los dos checksums para verificar que el resultado sea el mismo.

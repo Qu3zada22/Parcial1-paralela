@@ -1,57 +1,78 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
-// Algoritmo 3: Multiplicación de matrices densas (C = A x B)
-// Versión secuencial
+#define N_DEFAULT 1000
 
-// Tamaño de las matrices: 3 filas y 3 columnas
-# define N 3
+int main(int argc, char *argv[]) {
+    int n = (argc > 1) ? atoi(argv[1]) : N_DEFAULT;
 
+    if (n <= 0) {
+        printf("Error: N debe ser mayor que 0\n");
+        return 1;
+    }
 
-int main(void) {
-    // Matriz A: 
-    int matrizA[3][3] = {{5, 2, 1}, {2, 1, 2}, {4, 1, 3}};
+    double *matrizA = malloc((size_t)n * n * sizeof(double));
+    double *matrizB = malloc((size_t)n * n * sizeof(double));
+    double *resultado = calloc((size_t)n * n, sizeof(double));
 
-    // Matriz B:
-    int matrizB[3][3] = {{1, 4, 2}, {0, 3, 0}, {2, 1, 3}};
+    if (matrizA == NULL || matrizB == NULL || resultado == NULL) {
+        printf("Error al reservar memoria\n");
+        free(matrizA);
+        free(matrizB);
+        free(resultado);
+        return 1;
+    }
 
-    // Matriz resultante C: (Donde se guardará el resultado de la multiplicación)
-    int resultado[3][3];
-
-    int n = 3;
-
-    // Recorre las filas de la matriz A
+    srand(42);
     for (int i = 0; i < n; i++) {
-
-        // Variable para almacenar la suma de los productos
-        int suma = 0;
-
-        // Recorre las columnas de la matriz B
         for (int j = 0; j < n; j++) {
+            matrizA[i * n + j] = (double)(rand() % 10);
+            matrizB[i * n + j] = (double)(rand() % 10);
+        }
+    }
 
-            // Reinicia la variable suma para cada elemento 
-            // de la matriz resultante
-            suma = 0;
+    printf("Multiplicacion de matrices %d x %d con 1 trabajador\n\n", n, n);
+    struct timespec inicio;
+    struct timespec fin;
+    clock_gettime(CLOCK_MONOTONIC, &inicio);
 
-            // Recorre la fila i de A y la columna j de B
+    for (int fila = 0; fila < n; fila++) {
+        for (int j = 0; j < n; j++) {
+            double suma = 0.0;
             for (int k = 0; k < n; k++) {
-
-                // Multiplica los elementos correspondientes y acumula
-                // los productos
-                suma += matrizA[i][k] * matrizB[k][j];
+                suma += matrizA[fila * n + k] * matrizB[k * n + j];
             }
-            // Guarda la suma obtenida en la posicion correspondiente
-            resultado[i][j] = suma;
+            resultado[fila * n + j] = suma;
         }
     }
 
-    // Imprime la matriz resultante C
-    printf("Matriz resultado (C = A x B):\n");
+    clock_gettime(CLOCK_MONOTONIC, &fin);
+    double tiempo = (fin.tv_sec - inicio.tv_sec) +
+                    (fin.tv_nsec - inicio.tv_nsec) / 1000000000.0;
+    double checksum = 0.0;
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            printf("%d\t", resultado[i][j]);
+            checksum += resultado[i * n + j];
         }
-        printf("\n");
     }
 
+    int muestra = (n < 6) ? n : 6;
+    printf("Matriz resultado (C = A x B), esquina %dx%d:\n", muestra, muestra);
+    for (int i = 0; i < muestra; i++) {
+        for (int j = 0; j < muestra; j++) {
+            printf("%8.0f", resultado[i * n + j]);
+        }
+        printf("%s\n", (muestra < n) ? "  ..." : "");
+    }
+
+    printf("\nChecksum: %.0f\n", checksum);
+    printf("Tiempo de ejecucion: %.6f segundos\n", tiempo);
+
+    free(matrizA);
+    free(matrizB);
+    free(resultado);
     return 0;
 }
