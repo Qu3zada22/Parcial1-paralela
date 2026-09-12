@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -21,7 +23,9 @@ int main() {
         arreglo[j] = ((float)rand() / RAND_MAX) * 100.0f;
     }
 
-    clock_t inicio = clock();
+    struct timespec inicio;
+    struct timespec fin;
+    clock_gettime(CLOCK_MONOTONIC, &inicio);
 
     // PRIMER CICLO 
   
@@ -50,8 +54,9 @@ int main() {
     }
 
 
-    clock_t fin = clock();
-    double tiempo = (double)(fin - inicio) / CLOCKS_PER_SEC;
+    clock_gettime(CLOCK_MONOTONIC, &fin);
+    double tiempo = (fin.tv_sec - inicio.tv_sec) +
+                    (fin.tv_nsec - inicio.tv_nsec) / 1000000000.0;
 
 
     long total = 0;

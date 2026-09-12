@@ -47,7 +47,7 @@ bench: $(BINS_DIR)/histograma_secuencial $(BINS_DIR)/histograma_paralelo
 # Repetir varias corridas con un numero de hilos fijo (para tabla de METRICAS)
 # make bench_hist REPS=5 THREADS=4
 REPS = 5
-THREADS = 4
+THREADS = 8
 
 bench_hist: $(BINS_DIR)/histograma_secuencial $(BINS_DIR)/histograma_paralelo
 	@echo "=== Secuencial ($(REPS) corridas) ==="
@@ -62,17 +62,27 @@ bench_hist: $(BINS_DIR)/histograma_secuencial $(BINS_DIR)/histograma_paralelo
 		OMP_NUM_THREADS=$(THREADS) ./$(BINS_DIR)/histograma_paralelo | grep "Tiempo"; \
 	done
 
-# Escalabilidad: mismo N con distinto numero de hilos (como bench_mat)
-# make bench_hist_threads REPS=3
-bench_hist_threads: $(BINS_DIR)/histograma_paralelo
-	@echo "=== Histograma: escalabilidad ($(REPS) corridas por config) ==="
-	@for t in 1 2 4 8; do \
+# Secuencial y escalabilidad con THREADS=1,2,4,... hasta THREADS
+# THREADS debe ser potencia de 2. Ejemplo make bench_hist_threads THREADS=8 REPS=5
+bench_hist_threads: $(BINS_DIR)/histograma_secuencial $(BINS_DIR)/histograma_paralelo
+	@if [ $(THREADS) -le 0 ] || [ $$(( $(THREADS) & ($(THREADS) - 1) )) -ne 0 ]; then \
+		echo "Error: THREADS debe ser una potencia de 2 mayor que 0"; exit 1; \
+	fi
+	@echo "=== Histograma: escalabilidad hasta THREADS=$(THREADS) ($(REPS) corridas por config) ==="
+	@echo "-- Secuencial --"
+	@for i in $$(seq 1 $(REPS)); do \
+		printf "Run %s: " $$i; \
+		./$(BINS_DIR)/histograma_secuencial | grep "Tiempo"; \
+	done
+	@echo ""
+	@t=1; while [ $$t -le $(THREADS) ]; do \
 		echo "-- $$t hilo(s) --"; \
 		for i in $$(seq 1 $(REPS)); do \
 			printf "Run %s: " $$i; \
 			OMP_NUM_THREADS=$$t ./$(BINS_DIR)/histograma_paralelo | grep "Tiempo"; \
 		done; \
 		echo ""; \
+		t=$$((t * 2)); \
 	done
 
 # ---------- Matrices ----------
@@ -101,17 +111,27 @@ bench_mat: $(BINS_DIR)/matrices_paralelo
 		echo ""; \
 	done
 
-# Repetir varias corridas con distintos P (para tabla de METRICAS)
-# make bench_mat_reps N=1000 REPS=5
-bench_mat_reps: $(BINS_DIR)/matrices_paralelo
-	@echo "=== Matrices N=$(N): escalabilidad ($(REPS) corridas por config) ==="
-	@for p in 1 2 4 8; do \
+# Repetir varias corridas con P=1,2,4,... hasta P
+# P debe ser potencia de 2. Ejemplo make bench_mat_reps N=1000 P=8 REPS=5
+bench_mat_reps: $(BINS_DIR)/matrices_secuencial $(BINS_DIR)/matrices_paralelo
+	@if [ $(P) -le 0 ] || [ $$(( $(P) & ($(P) - 1) )) -ne 0 ]; then \
+		echo "Error: P debe ser una potencia de 2 mayor que 0"; exit 1; \
+	fi
+	@echo "=== Matrices N=$(N): escalabilidad hasta P=$(P) ($(REPS) corridas por config) ==="
+	@echo "-- Secuencial --"
+	@for i in $$(seq 1 $(REPS)); do \
+		printf "Run %s: " $$i; \
+		./$(BINS_DIR)/matrices_secuencial $(N) | grep "Tiempo"; \
+	done
+	@echo ""
+	@p=1; while [ $$p -le $(P) ]; do \
 		echo "-- P=$$p --"; \
 		for i in $$(seq 1 $(REPS)); do \
 			printf "Run %s: " $$i; \
 			./$(BINS_DIR)/matrices_paralelo $(N) $$p | grep "Tiempo"; \
 		done; \
 		echo ""; \
+		p=$$((p * 2)); \
 	done
 
 # Comparacion directa: mismo N y datos para secuencial y paralelo
