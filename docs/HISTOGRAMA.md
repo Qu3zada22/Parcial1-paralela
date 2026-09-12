@@ -7,7 +7,8 @@
 Se tiene una lista gigante de temperaturas representadas como números con decimales y se quiere organizarlas en 100 grupos para contar cuántas caen en cada uno, sin saber de antemano cuál es el valor mínimo o máximo.
 
 ### Datos de prueba
-- Tamaño de la muestra (N): 10,000,000 elementos (float), un tamaño suficiente para que el tiempo de cómputo sea perceptible y valga la pena usar hilos, evitando que el overhead de OpenMP opaque la ganancia.- Origen: Generados de forma pseudoaleatoria simulando lecturas de sensores en un rango de 0 a 100.
+- Tamaño de la muestra (N): 10,000,000 elementos (float), un tamaño suficiente para medir con estabilidad el tiempo de cómputo y comparar el costo real de usar OpenMP.
+- Origen: Generados de forma pseudoaleatoria simulando lecturas de sensores en un rango de 0 a 100.
 - Estructura en memoria: Un arreglo unidimensional contiguo (float), lo que facilita un buen uso de la caché del procesador al recorrerlo secuencialmente.
 
 
@@ -31,7 +32,7 @@ Se tiene una lista gigante de temperaturas representadas como números con decim
 
 ## 3. Estrategia de Paralelización
 
-Para acelerar el programa, dividimos el trabajo entre varios hilos usando OpenMP con un enfoque de paralelismo de datos puro (partir el arreglo en bloques y que cada hilo procese su parte).
+Para evaluar si el programa puede acelerarse, dividimos el trabajo entre varios hilos usando OpenMP con un enfoque de paralelismo de datos puro: partir el arreglo en bloques y que cada hilo procese su parte.
 
 ### ¿Qué directivas usamos y por qué?
 
@@ -65,7 +66,9 @@ Elegimos schedule(static) porque clasificar una temperatura y sumarla al bin tom
 
 ### Análisis del algoritmo secuencial vs. paralelo
 
-El algoritmo secuencial original recorría el arreglo dos veces: una para hallar los límites y otra para clasificar ($O(2N) = O(N)$). Aunque asintóticamente sigue siendo $O(N)$ en paralelo, repartir los 10 millones de elementos entre los núcleos disponibles reduce drásticamente el tiempo de ejecución en procesadores multi-core.
+El algoritmo secuencial original recorre el arreglo dos veces: una para hallar los límites y otra para clasificar, por lo que su costo es $O(2N) = O(N)$. La versión paralela conserva el orden $O(N)$ y reparte elementos entre los núcleos, pero eso no garantiza una reducción de tiempo.
+
+En las métricas del equipo, el histograma paralelo fue más lento que el secuencial en las máquinas medidas. El segundo recorrido actualiza solo 100 bins compartidos; aunque `atomic` evita perder conteos, también serializa los incrementos cuando varios hilos caen en el mismo bin. El overhead de crear y coordinar hilos, junto con esa contención, supera el beneficio de repartir el recorrido. Por ello, para esta implementación y tamaño de datos, la recomendación es mantener la versión secuencial; una alternativa para mejorar el paralelo sería usar histogramas locales por hilo y combinarlos al final.
 
 ## 6. Pruebas de ejecución y métricas individuales
 
